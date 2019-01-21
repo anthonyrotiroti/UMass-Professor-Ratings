@@ -23,13 +23,14 @@ function getProfs(){
 				var prof = element;
 				prof.name = names[j];
 				prof.rating = -1;
+				prof.difficulty = -1;
+				prof.wouldTakeAgain = -1;
 				professors.push(prof);
 				findProfRating(prof, j, names.length-1,  prof.name, findProfRatingCallback);
 			}
 		}
 	}	
 }
-
 
 
 function encodeName(name){
@@ -57,9 +58,8 @@ function findProfRating(prof, index, lastIndex, name, callback){
 			callback(prof, index, lastIndex, name, result.firstElementChild.getAttribute('href'));
 
 		else
-			prof.innerHTML += (name + '  Not Found');
+			prof.innerHTML += name + '<span style="color:brown; font-family: Arial;"> N/A </span>';
 	}
-
 	xhr.send(null);
 }
 
@@ -72,9 +72,21 @@ function findProfRatingCallback(prof, index, lastIndex, name, page){
 	xhr.onload = function(){
 		var parser = new DOMParser();
 		var doc = parser.parseFromString(xhr.responseText, 'text/html');
-		var rating = doc.querySelector("div.breakdown-container.quality").children[0].children[0].innerHTML;
+		try{
+			var rating = doc.querySelector("div.breakdown-container.quality").children[0].children[0].innerHTML;
+			var wouldTakeAgain = doc.getElementsByClassName("breakdown-header")[1].children[0].children[1].innerHTML;
+			var difficulty = doc.getElementsByClassName("breakdown-header")[1].children[1].children[0].innerHTML;
 
-		prof.innerHTML += (name + '  <a href="' + url + '" target =_blank>' + rating + '</a> <br>');
+			prof.innerHTML += (name + '  <a class="removelinkdefault" style="text-decoration: none;" href="' + url 
+			   + '" target =_blank>' + '<span style="color:brown; font-size: 1.3em; font-family: Arial;">'
+ 			   + rating + '</span>' + '</a> <br>');
+		}
+
+		catch(error) {
+			console.log("Unable to find rating for " + name);
+			prof.innerHTML = name + '<span style="color:brown; font-family: Arial;"> N/A </span>';
+		}
+
 		profsLoaded++;
 
 		if(profsLoaded == professors.length)
@@ -95,13 +107,11 @@ function wait(){
 			getProfs();
 			wait();
 		}
-		
 		else
 			wait();
 		
 	},1000);
-
-	}
+}
 
 
 function reset(){
