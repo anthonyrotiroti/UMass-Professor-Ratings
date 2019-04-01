@@ -1,8 +1,11 @@
 {
   "manifest_version": 2,
-  "name": "Umass Professor Ratings",
-  "version": "1.0",
+  "name": "UMass Professor Ratings",
+  "version": "1.2",
 
+  "background":{
+    "scripts": ["jquery-3.2.1.js", "background.js"]
+  },
 
   "content_scripts": [
     {

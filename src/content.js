@@ -9,9 +9,7 @@ var profsLoaded = 0;
 // The iframe of the page, which contains the content.
 var iframe = document.getElementById('ptifrmtgtframe');
 
-
 function getProfs(){
-   
 	var element;
 	for(var i = 0; iframe.contentDocument.getElementById('MTG_INSTR$'+i); i++){
 		element = iframe.contentDocument.getElementById('MTG_INSTR$'+i);
@@ -25,11 +23,14 @@ function getProfs(){
 				prof.rating = -1;
 				prof.difficulty = -1;
 				prof.wouldTakeAgain = -1;
-				professors.push(prof);
-				findProfRating(prof, j, names.length-1,  prof.name, findProfRatingCallback);
+				professors[i] = prof;
+				
+				port.postMessage({prof:prof, index:i, lastIndex: names.length-1, name:prof.name});
+				//findProfRating(prof, j, names.length-1,  prof.name, insertRating);
 			}
 		}
 	}	
+	
 }
 
 
@@ -42,58 +43,29 @@ function encodeName(name){
 function findProfRating(prof, index, lastIndex, name, callback){
 	prof.innerHTML = '';
 
+
 	var url = 'https://www.ratemyprofessors.com/search.jsp?queryoption=HEADER&queryBy=teacherName&schoolName=University+of+Massachusetts&schoolID=1513&query='
 	+ encodeName(name);
+	port.postMessage({prof:prof, index:index, lastIndex: lastIndex, name:name});
 
-	var xhr = new XMLHttpRequest();
-
-	xhr.open("GET", url , true); 
-	xhr.onload = function(){
-
-		var parser = new DOMParser();
-		var doc = parser.parseFromString(xhr.responseText,'text/html');
-		var result = doc.querySelector(".listing.PROFESSOR")
-
-		if(result)
-			callback(prof, index, lastIndex, name, result.firstElementChild.getAttribute('href'));
-
-		else
-			prof.innerHTML += name + '<span style="color:brown; font-family: Arial;"> N/A </span>';
-	}
-	xhr.send(null);
 }
 
 
-function findProfRatingCallback(prof, index, lastIndex, name, page){
-	var url = "https://www.ratemyprofessors.com" + page;	
-	var xhr = new XMLHttpRequest();
-	xhr.open('GET', url, true);
+function insertRating(prof, index, lastIndex, name, url, rating){
 
-	xhr.onload = function(){
-		var parser = new DOMParser();
-		var doc = parser.parseFromString(xhr.responseText, 'text/html');
-		try{
-			var rating = doc.querySelector("div.breakdown-container.quality").children[0].children[0].innerHTML;
-			var wouldTakeAgain = doc.getElementsByClassName("breakdown-header")[1].children[0].children[1].innerHTML;
-			var difficulty = doc.getElementsByClassName("breakdown-header")[1].children[1].children[0].innerHTML;
-
-			prof.innerHTML += (name + '  <a class="removelinkdefault" style="text-decoration: none;" href="' + url 
-			   + '" target =_blank>' + '<span style="color:brown; font-size: 1.3em; font-family: Arial;">'
- 			   + rating + '</span>' + '</a> <br>');
-		}
-
-		catch(error) {
-			console.log("Unable to find rating for " + name);
-			prof.innerHTML = name + '<span style="color:brown; font-family: Arial;"> N/A </span>';
-		}
-
-		profsLoaded++;
-
-		if(profsLoaded == professors.length)
-			wait();	
+// Not putting a link if the prof isn't found.
+	if(rating == 'N/A'){
+		professors[index].innerHTML = professors[index].innerHTML.replace(name, name + '  <a class="removelinkdefault" style="text-decoration: none;"' 
+			+ '" target =_blank>' + '<span style="color:brown; font-size: 1.3em; font-family: Arial;">'
+			+ rating + '</span>' + '</a> <br>');
 	}
-	
-	xhr.send(null);
+
+	else{
+		professors[index].innerHTML = professors[index].innerHTML.replace(name, name + '  <a class="removelinkdefault" style="text-decoration: none;" href="' + url 
+			+ '" target =_blank>' + '<span style="color:brown; font-size: 1.3em; font-family: Arial;">'
+			+ rating + '</span>' + '</a> <br>');
+	}
+
 }
 
 
@@ -119,5 +91,11 @@ function reset(){
 	profsLoaded = 0;
 }
 
+var port = chrome.runtime.connect({name: 'rating'});
+
+port.onMessage.addListener(function(r){
+	console.log(r.name + ': ' + r.rating);
+	insertRating(r.prof, r.index, r.lastIndex, r.name, r.url, r.rating);
+});
 
 wait();

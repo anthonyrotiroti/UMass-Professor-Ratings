@@ -1,26 +1,23 @@
 
-// Global profs is not updating in the functions. Need to pass ratings back to content script.
+//Port variable made global so that other functions can send rating asynchronously
+var port;
 
-
-var profs = [];
-
-
-chrome.runtime.onMessage.addListener(
-	function(request, sender, sendResponse){
-		if(request.message == "find-rating"){
-			findProfRating(request.prof, findProfRatingCallback);
-
-			
-			// Returning true makes the response send asynchronously
-			return true; 
-		}
+chrome.runtime.onConnect.addListener(function(p) {
+	port = p;
+	p.onMessage.addListener(function(r){
+		findProfRating(r.prof, r.index, r.lastIndex, r.name, findProfRatingCallback);
 	});
+});
+
+function encodeName(name){
+	var names = name.split(' ');
+	return (names[0] + '+' + names[1]).trim();
+}
 
 
+function findProfRating(prof, index, lastIndex, name, callback){
 
-function findProfRating(prof, callback){
-
-	var url = 'https://www.ratemyprofessors.com/search.jsp?queryoption=HEADER&queryBy=teacherName&schoolName=University+of+Massachusetts&schoolID=1513&query=' + prof.urlName;
+	var url = 'https://www.ratemyprofessors.com/search.jsp?queryoption=HEADER&queryBy=teacherName&schoolName=University+of+Massachusetts&schoolID=1513&query=' + encodeName(name);
 	//console.log(url);
 	var xhr = new XMLHttpRequest();
 
@@ -32,28 +29,55 @@ function findProfRating(prof, callback){
 
 		var parser = new DOMParser();
 		var doc = parser.parseFromString(xhr.responseText,'text/html');
-		var el = doc.querySelector(".listing.PROFESSOR").firstElementChild.getAttribute('href');
+		console.log(doc)
+		var listing = doc.querySelector(".listing.PROFESSOR");
+		if(listing){
+			var el = listing.firstElementChild.getAttribute('href');
+			if(el)
+				callback(prof, index, lastIndex, name, el);
+			else{
+				url = ''
+				port.postMessage({prof: prof, index:index, 
+				lastIndex:lastIndex,name:name, url:url, rating:'N/A'});
+			}
+		}
 
-		if(el)
-			callback(prof, el);
-		
+		else {
+			url = ''
+			port.postMessage({prof: prof, index:index, 
+			lastIndex:lastIndex,name:name, url:url, rating:'N/A'});
+		}
+
+	
 	}
 	xhr.send(null);
 }
 
 
-function findProfRatingCallback(prof, page){
+function findProfRatingCallback(prof, index, lastIndex, name, page){
 	var url = "https://www.ratemyprofessors.com" + page;	
 	var xhr = new XMLHttpRequest();
 	xhr.open('GET', url, true);
+
 	xhr.onload = function(){
 		var parser = new DOMParser();
 		var doc = parser.parseFromString(xhr.responseText, 'text/html');
-		var rating = doc.querySelector("div.breakdown-container.quality").children[0].children[0].innerHTML;
+		try{
+			var rating = doc.querySelector("div.breakdown-container.quality").children[0].children[0].innerHTML;
 
-		prof.rating = rating;
+			port.postMessage({prof:prof, index:index, lastIndex:lastIndex, name:name, url:url, rating:rating});
+
+		}
+
+		catch(error) {
+			console.log("Unable to find rating for " + name);
+		}
+
 	}
+	
+	xhr.send(null);
 }
+
 
 
 
@@ -74,7 +98,7 @@ function findProfRatingCallback(index, page){
 		var doc = parser.parseFromString(xhr.responseText, 'text/html');
 		var rating = doc.querySelector("div.breakdown-container.quality").children[0].children[0].innerHTML;
 		console.log(profs[index].name + ": " + profs[index].rating);
-		f
+		
 
 		
 	}
