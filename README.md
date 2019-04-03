@@ -2,8 +2,8 @@
 A lightweight tool for students of UMass Amherst that helps inform their decision on classes and professors.
 
 ## Technologies
-* JSON
 * JavaScript
+* JQuery
 
 ## Usage
 Usage is straightforward - simply install from the [chrome web store](https://chrome.google.com/webstore/detail/umass-professor-ratings/cfcmdmblcnnoppgldifmihbmpeneplbi/) and the extension will search for ratings on ratemyprofessor.com and insert those that are found next to the professor's name.
